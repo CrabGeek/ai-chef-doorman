@@ -1,27 +1,16 @@
-import nats
-import asyncio
+import pika
+from pika.delivery_mode import DeliveryMode
 
+connection = pika.BlockingConnection(pika.ConnectionParameters(host="localhost"))
+channel = connection.channel()
 
-async def run():
-    nc = await nats.connect(servers=["nats://localhost:4222"])
+channel.queue_declare(queue="foo")
 
-    await nc.subscribe("foo", cb=message_handler)
-
-
-
-async def message_handler(msg):
-    subject = msg.subject
-    reply = msg.reply
-    data = msg.data.decode()
-    print(
-        "Received a message on '{subject} {reply}': {data}".format(
-            subject=subject, reply=reply, data=data
-        )
-    )
-
-
-if __name__ == "__main__":
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(run())
-    loop.run_forever()
+channel.basic_publish(
+    exchange="",
+    routing_key="foo",
+    body="Hello World!",
+    properties=pika.BasicProperties(delivery_mode=DeliveryMode.Transient),
+)
+print(" [x] Sent 'Hello World!'")
+connection.close()
