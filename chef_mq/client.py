@@ -35,7 +35,8 @@ def start_consuming(channel_name: str, cb: Callable):
     if channel is None:
         # TODO: need to log
         return
-    MQ_CHANNEL_CONSUMMING_POOL.submit(channel.start_consuming)
+    channel.basic_consume(queue=channel_name, on_message_callback=cb, auto_ack=True)
+    MQ_CHANNEL_CONSUMMING_POOL.submit(channel.start_consuming())
 
 
 __init_MQ()
