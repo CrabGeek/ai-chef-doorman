@@ -14,7 +14,9 @@ def main():
     def callback_foo(ch, method, properties, body):
         print(f"Fooooooo {body}")
 
-    channel.basic_consume(queue="hotspyder_to_doorman", on_message_callback=callback, auto_ack=True)
+    channel.basic_consume(
+        queue="hotspyder_to_doorman", on_message_callback=callback, auto_ack=True
+    )
 
     channel.basic_consume(queue="foo", on_message_callback=callback_foo, auto_ack=True)
 

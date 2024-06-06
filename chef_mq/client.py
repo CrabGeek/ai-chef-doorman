@@ -1,42 +1,58 @@
 import pika
 from chef_utility.hotspyder_utility import MQ_CHANNEL_CONSUMMING_POOL
-from typing import Callable
-
-MQ_CHANNEL_MAP = {}
+import server_settings
 
 
-def __init_MQ():
-    try:
-        conn = pika.BlockingConnection(pika.ConnectionParameters(host="localhost"))
-        channel = conn.channel()
-        channel.queue_declare("hotspyder_to_doorman")
-        MQ_CHANNEL_MAP.update({"hotspyder_to_doorman": channel})
-    except Exception as e:
-        print(e)
+class RabbitMQClient:
+
+    def __init__(self, address: str) -> None:
+        self.__addr = address
+        self.__publish_conn: pika.BlockingConnection = None
+        self.__consume_conn: pika.BlockingConnection = None
+
+    def init_connections(self):
+        try:
+            self.__publish_conn = pika.BlockingConnection(
+                pika.ConnectionParameters(host=self.__addr)
+            )
+            self.__consume_conn = pika.BlockingConnection(
+                pika.ConnectionParameters(host=self.__addr)
+            )
+
+        except Exception as e:
+            # TODO: need to log
+            print(e)
+
+    def send(
+        self,
+        channel_name: str,
+        payload: str,
+        properties: pika.BasicProperties,
+        exchange: str = "",
+    ):
+        with self.__publish_conn.channel() as channel:
+            try:
+                channel.queue_declare(channel_name)
+                channel.basic_publish(
+                    exchange=exchange,
+                    routing_key=channel_name,
+                    body=payload,
+                    properties=properties,
+                )
+            except Exception as e:
+                # TODO: need to log
+                print(e)
+
+    def consume(self, channel_name, callback):
+        with self.__consume_conn.channel() as channel:
+            try:
+                channel.queue_declare(queue=channel_name)
+                channel.basic_consume(
+                    queue=channel_name, on_message_callback=callback, auto_ack=True
+                )
+                channel.start_consuming()
+            except Exception as e:
+                print(e)
 
 
-def send(channel_name: str, payload: str, properties: pika.BasicProperties):
-    channel = MQ_CHANNEL_MAP.get(channel_name)
-    if channel is None:
-        # TODO: need to log
-        return
-
-    try:
-        channel.basic_publish(
-        exchange="", routing_key=channel_name, body=payload, properties=properties
-    )
-    except Exception as e:
-        #TODO: need log
-        print(e)
-
-
-def start_consuming(channel_name: str, cb: Callable):
-    channel = MQ_CHANNEL_MAP.get(channel_name)
-    if channel is None:
-        # TODO: need to log
-        return
-    channel.basic_consume(queue=channel_name, on_message_callback=cb, auto_ack=True)
-    MQ_CHANNEL_CONSUMMING_POOL.submit(channel.start_consuming())
-
-
-__init_MQ()
+rabbit_mq_instant = RabbitMQClient(server_settings.MQ_ADDRESS)
