@@ -1,11 +1,11 @@
-import pika
-from pika.delivery_mode import DeliveryMode
 from chef_mq import instant
-
-def handle_message(ch, method, properties, body):
-        print(f" [x] Received {body.decode('utf-8')}")
+from chef_consumers import handle_message
+from chef_utility import THREAD_POOL
 
 
 if __name__ == '__main__':
-    instant.init_connections()
-    instant.consume(channel_name="hotspyder_to_doorman", callback=handle_message)
+    try:
+        instant.consume(channel_name="hotspyder_to_doorman", cb=handle_message)
+    except Exception as e:
+        print(e)
+        THREAD_POOL.shutdown()
